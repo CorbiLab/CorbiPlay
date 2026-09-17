@@ -35,10 +35,18 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith("/login");
-  const isPublicAsset = request.nextUrl.pathname.startsWith("/_next");
+  const pathname = request.nextUrl.pathname;
+  const isAuthRoute = pathname.startsWith("/login");
+  const isPublicAsset = pathname.startsWith("/_next");
+  // /auth/confirm exchanges an emailed link for a session (no user yet when
+  // the request arrives); /reset-password needs that freshly-exchanged
+  // session to stick around long enough to set a new password. Neither
+  // should bounce to /login for lacking a user yet, nor to /dashboard for
+  // already having one — unlike /login, they're not "already signed in, no
+  // reason to be here."
+  const isPasswordRecoveryRoute = pathname.startsWith("/auth/confirm") || pathname.startsWith("/reset-password");
 
-  if (!user && !isAuthRoute && !isPublicAsset) {
+  if (!user && !isAuthRoute && !isPasswordRecoveryRoute && !isPublicAsset) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
