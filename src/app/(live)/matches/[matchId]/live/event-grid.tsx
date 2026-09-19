@@ -30,7 +30,16 @@ export function EventGrid() {
   const draft = useLiveEncodingStore((s) => s.draft);
   const beginDraft = useLiveEncodingStore((s) => s.beginDraft);
   const encodingLevel = useLiveEncodingStore((s) => s.encodingLevel);
-  const types = getLiveEncodingButtonGroups(encodingLevel).flatMap((group) => group.types);
+  const customEncodingTypes = useLiveEncodingStore((s) => s.customEncodingTypes);
+  const types = getLiveEncodingButtonGroups(encodingLevel, customEncodingTypes).flatMap((group) => group.types);
+
+  if (encodingLevel === "CUSTOM" && types.length === 0) {
+    return (
+      <p className="p-3 text-sm text-muted-foreground">
+        Aucun bouton configuré pour le niveau Personnalisé — utilise « Configurer » à côté du sélecteur de niveau.
+      </p>
+    );
+  }
 
   return (
     <div className="grid gap-2" style={{ gridTemplateColumns: GRID_TEMPLATE_COLUMNS }}>

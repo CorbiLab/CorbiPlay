@@ -60,4 +60,14 @@ describe("getLiveEncodingButtonGroups", () => {
     expect(basicCategories).not.toContain("POSSESSION");
     expect(basicCategories).not.toContain("DEFENCE");
   });
+
+  it("CUSTOM with no selection shows nothing — never silently falls back to the full grid", () => {
+    expect(getLiveEncodingButtonGroups("CUSTOM")).toEqual([]);
+    expect(getLiveEncodingButtonGroups("CUSTOM", [])).toEqual([]);
+  });
+
+  it("CUSTOM shows exactly the analyst's own picks, regardless of BASIC/STANDARD/ADVANCED groupings", () => {
+    const types = getLiveEncodingButtonGroups("CUSTOM", ["GOAL", "TACKLE"]).flatMap((g) => g.types);
+    expect(types.sort()).toEqual(["GOAL", "TACKLE"].sort());
+  });
 });

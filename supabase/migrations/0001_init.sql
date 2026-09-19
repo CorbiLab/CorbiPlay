@@ -228,6 +228,13 @@ create table matches (
   -- real break ran. quarter + quarter_elapsed_ms (not match_elapsed_ms)
   -- is what a video timestamp is computed from.
   video_quarter_offsets_ms jsonb not null default '{}'::jsonb,
+  -- The analyst's own pick of event types for this match's live-encoding grid,
+  -- used only while the (purely local, unpersisted) encoding level switch is
+  -- set to CUSTOM — a plain array of hockey_events.event_type values, e.g.
+  -- '["GOAL","TACKLE"]'. Per-match, not per-team, since the same team can be
+  -- encoded solo one week and by two analysts the next. Empty/absent means
+  -- "not configured yet," not "show everything."
+  custom_encoding_types jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

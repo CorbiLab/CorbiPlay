@@ -19,6 +19,7 @@ import { RosterPanel } from "./roster-panel";
 import { EventGrid } from "./event-grid";
 import { CurrentEventPanel } from "./current-event-panel";
 import { TimelinePanel } from "./timeline-panel";
+import { CustomEncodingDialog } from "./custom-encoding-dialog";
 
 interface LiveEncodingScreenProps {
   match: Match;
@@ -32,6 +33,7 @@ const ENCODING_LEVELS: { value: EncodingLevel; label: string }[] = [
   { value: "BASIC", label: "Basique" },
   { value: "STANDARD", label: "Standard" },
   { value: "ADVANCED", label: "Avancé" },
+  { value: "CUSTOM", label: "Personnalisé" },
 ];
 
 const SYNC_LABEL: Record<string, { text: string; className: string }> = {
@@ -71,6 +73,7 @@ export function LiveEncodingScreen({ match, roster, initialEvents, initialEventP
       events: initialEvents,
       eventParticipants: initialEventParticipants,
       possessions: initialPossessions,
+      customEncodingTypes: match.custom_encoding_types,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -255,6 +258,7 @@ export function LiveEncodingScreen({ match, roster, initialEvents, initialEventP
               </button>
             ))}
           </div>
+          {encodingLevel === "CUSTOM" && <CustomEncodingDialog />}
           {!rosterVisible && (
             <Button variant="outline" size="sm" onClick={() => setRosterOverride({ level: encodingLevel, visible: true })} className="gap-1">
               <Users className="size-4" /> Joueurs

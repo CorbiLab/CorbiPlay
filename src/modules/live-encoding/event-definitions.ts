@@ -9,7 +9,7 @@ import { SUGGESTED_PRESS_PARTICIPANT_ROLES } from "@/modules/analytics/logic/tac
  * config table later is additive (read the same shape from an
  * `event_definitions` table instead of this constant), not a redesign.
  */
-export type EncodingLevel = "BASIC" | "STANDARD" | "ADVANCED";
+export type EncodingLevel = "BASIC" | "STANDARD" | "ADVANCED" | "CUSTOM";
 
 /**
  * Never blocks a save except REQUIRED — and REQUIRED only exists for
@@ -151,17 +151,29 @@ export const LIVE_ENCODING_BUTTON_GROUPS: { category: EventCategory; types: Even
  * trimmed-down set for a solo analyst who just wants scoreline/transitions/
  * cards. ADVANCED is currently identical to STANDARD (both `null`) — the
  * still-open item is a dedicated ADVANCED-only screen *layout*, not a wider
- * button set (see docs/ROADMAP.md).
+ * button set (see docs/ROADMAP.md). CUSTOM isn't a fixed preset — it has no
+ * entry here, its allowlist is whatever the analyst picked for *this match*
+ * (matches.custom_encoding_types), passed into getLiveEncodingButtonGroups.
  */
-const LEVEL_BUTTON_TYPES: Record<EncodingLevel, EventType[] | null> = {
+const LEVEL_BUTTON_TYPES: Record<"BASIC" | "STANDARD" | "ADVANCED", EventType[] | null> = {
   BASIC: ["BALL_WIN", "TURNOVER", "CIRCLE_ENTRY", "PC_WON", "GOAL", "GREEN_CARD", "YELLOW_CARD", "RED_CARD"],
   STANDARD: null,
   ADVANCED: null,
 };
 
-/** The button groups to render for a given encoding level — see LEVEL_BUTTON_TYPES. */
-export function getLiveEncodingButtonGroups(level: EncodingLevel): { category: EventCategory; types: EventType[] }[] {
-  const allowlist = LEVEL_BUTTON_TYPES[level];
+/**
+ * The button groups to render for a given encoding level. `customTypes` is
+ * only consulted for CUSTOM — a per-match analyst-picked allowlist, since
+ * unlike the other three levels it has no fixed preset (see
+ * LEVEL_BUTTON_TYPES). An empty/missing selection means "nothing configured
+ * yet," not "show everything" — the screen should prompt the analyst to
+ * configure it rather than silently falling back to the full grid.
+ */
+export function getLiveEncodingButtonGroups(
+  level: EncodingLevel,
+  customTypes: readonly EventType[] = []
+): { category: EventCategory; types: EventType[] }[] {
+  const allowlist = level === "CUSTOM" ? customTypes : LEVEL_BUTTON_TYPES[level];
   if (!allowlist) return LIVE_ENCODING_BUTTON_GROUPS;
   const allowed = new Set(allowlist);
   return LIVE_ENCODING_BUTTON_GROUPS.map((group) => ({ ...group, types: group.types.filter((t) => allowed.has(t)) })).filter(

@@ -54,7 +54,7 @@ async function applyRecord(record: OutboxRecord): Promise<void> {
       if (error) throw error;
       return;
     }
-    case "UPDATE_MATCH_CLOCK": {
+    case "UPDATE_MATCH": {
       const { matchId, patch } = record.payload as { matchId: string; patch: Record<string, unknown> };
       const { error } = await supabase.from("matches").update(patch).eq("id", matchId);
       if (error) throw error;

@@ -202,6 +202,8 @@ export interface Match {
   video_url: string | null;
   /** Map of quarter number -> ms into the video where that quarter's clock hit 00:00, e.g. `{ "1": 120000 }`. See modules/matches/logic/video.ts. */
   video_quarter_offsets_ms: Record<string, number>;
+  /** The analyst's own event-type picks for the live-encoding grid when the (local, unpersisted) encoding level is set to CUSTOM. Empty means "not configured yet." */
+  custom_encoding_types: EventType[];
   created_at: string;
   updated_at: string;
 }

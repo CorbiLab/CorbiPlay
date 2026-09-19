@@ -173,7 +173,7 @@ export const demoScheduledMatch: Match = {
   quarter_started_at: null,
   quarter_paused_at: null,
   quarter_paused_ms_total: 0,
-  attacking_directions: null, video_url: null, video_quarter_offsets_ms: {},
+  attacking_directions: null, video_url: null, video_quarter_offsets_ms: {}, custom_encoding_types: [],
   created_at: now,
   updated_at: now,
 };
@@ -197,7 +197,7 @@ export const demoFinishedMatch: Match = {
   quarter_started_at: null,
   quarter_paused_at: null,
   quarter_paused_ms_total: 0,
-  attacking_directions: null, video_url: null, video_quarter_offsets_ms: {},
+  attacking_directions: null, video_url: null, video_quarter_offsets_ms: {}, custom_encoding_types: [],
   created_at: now,
   updated_at: now,
 };

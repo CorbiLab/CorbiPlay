@@ -54,6 +54,9 @@ interface LiveEncodingState {
    */
   encodingLevel: EncodingLevel;
   setEncodingLevel: (level: EncodingLevel) => void;
+  /** The analyst's own event-type picks for this match's CUSTOM grid (matches.custom_encoding_types) — unlike encodingLevel itself, this IS persisted, since it's real per-match configuration, not a display toggle. */
+  customEncodingTypes: EventType[];
+  setCustomEncodingTypes: (types: EventType[]) => void;
   /**
    * Who this event/possession is for — team-level only (spec §16: the
    * opponent has no roster, ever). Same UI/display-setting shape as
@@ -84,6 +87,7 @@ interface LiveEncodingState {
     events: HockeyEvent[];
     eventParticipants?: EventParticipant[];
     possessions?: Possession[];
+    customEncodingTypes?: EventType[];
   }) => void;
 
   selectPlayer: (playerId: string) => void;
@@ -163,6 +167,16 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
   openPossessionId: null,
   encodingLevel: "STANDARD",
   setEncodingLevel: (level) => set({ encodingLevel: level }),
+  customEncodingTypes: [],
+  setCustomEncodingTypes: (types) => {
+    const state = get();
+    set({ customEncodingTypes: types });
+    if (isSupabaseConfigured()) {
+      queueWrite("UPDATE_MATCH", { matchId: state.matchId, patch: { custom_encoding_types: types } }).then(() =>
+        get().syncNow()
+      );
+    }
+  },
   taggingSide: "US",
   setTaggingSide: (side) => set({ taggingSide: side }),
   syncStatus: isSupabaseConfigured() ? "SYNCED" : "DEMO",
@@ -174,7 +188,13 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
     const possessions = params.possessions ?? [];
     // Resuming after a refresh mid-possession: whichever row has no end yet is the open one.
     const open = possessions.find((p) => p.end_match_elapsed_ms == null);
-    set({ ...params, eventParticipants: params.eventParticipants ?? [], possessions, openPossessionId: open?.id ?? null });
+    set({
+      ...params,
+      eventParticipants: params.eventParticipants ?? [],
+      possessions,
+      openPossessionId: open?.id ?? null,
+      customEncodingTypes: params.customEncodingTypes ?? [],
+    });
   },
 
   selectPlayer: (playerId) => {
@@ -502,7 +522,7 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
     const patch = startQuarter(nextQuarterNumber, Date.now());
     set({ currentQuarter: nextQuarterNumber, clockAnchor: patch, status: "LIVE" });
     if (isSupabaseConfigured()) {
-      queueWrite("UPDATE_MATCH_CLOCK", {
+      queueWrite("UPDATE_MATCH", {
         matchId: state.matchId,
         patch: {
           current_quarter: nextQuarterNumber,
@@ -549,7 +569,7 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
     const patch = startQuarter(next, Date.now());
     set({ currentQuarter: next, clockAnchor: patch, status: "LIVE" });
     if (isSupabaseConfigured()) {
-      queueWrite("UPDATE_MATCH_CLOCK", {
+      queueWrite("UPDATE_MATCH", {
         matchId: state.matchId,
         patch: {
           current_quarter: next,
@@ -567,7 +587,7 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
     const patch = endQuarterAnchor(state.clockAnchor, Date.now());
     set({ clockAnchor: patch, status: "FINISHED" });
     if (isSupabaseConfigured()) {
-      queueWrite("UPDATE_MATCH_CLOCK", {
+      queueWrite("UPDATE_MATCH", {
         matchId: state.matchId,
         patch: { status: "FINISHED", our_score: get().getOurScore() },
       }).then(() => get().syncNow());
@@ -630,7 +650,7 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
  */
 function persistClockAnchor(matchId: string, status: MatchStatus, patch: ClockAnchor): void {
   if (!isSupabaseConfigured()) return;
-  queueWrite("UPDATE_MATCH_CLOCK", {
+  queueWrite("UPDATE_MATCH", {
     matchId,
     patch: {
       status,
