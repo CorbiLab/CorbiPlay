@@ -16,6 +16,7 @@ import {
 import { computeMatchStats } from "@/modules/analytics/logic/match-stats";
 import { queueWrite, trySync } from "./repository";
 import type { SyncStatus } from "./offline/sync";
+import { listFailed } from "./offline/outbox";
 
 export interface RosterPlayer {
   player: Player;
@@ -563,6 +564,13 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
     set({ syncStatus: "SYNCING" });
     const status = await trySync();
     set({ syncStatus: status });
+    // The UI badge can only say "something was lost" (SYNC_LABEL in
+    // live-encoding-screen.tsx) — this is where the *what*, for whoever
+    // opens the console, since there's no dedicated review UI for this yet.
+    if (status === "SYNCED_WITH_ERRORS") {
+      const failed = await listFailed();
+      console.warn("Ces événements n'ont pas pu être sauvegardés (erreur définitive, ne se réessaiera plus) :", failed);
+    }
   },
 
   getStints: (nowMs) => {

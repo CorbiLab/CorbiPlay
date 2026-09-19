@@ -23,7 +23,15 @@ export interface OutboxRecord<TPayload = unknown> {
   kind: OutboxKind;
   payload: TPayload;
   createdAt: number;
-  status: "pending" | "synced";
+  /**
+   * "failed" is a dead end, not a retry state — set only for an error the
+   * server will reject identically forever (e.g. a foreign key pointing at
+   * a since-deleted match), never for a network/connectivity failure. See
+   * `isPermanentError` in offline/sync.ts for the actual classification.
+   */
+  status: "pending" | "synced" | "failed";
+  /** Set alongside status: "failed" — the server's error message, kept for diagnostics (spec: never fail silently). */
+  lastError?: string;
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -80,6 +88,28 @@ export async function markSynced(id: number): Promise<void> {
     await promisifyRequest(store.put(record));
   }
   db.close();
+}
+
+/** See the "failed" status doc on OutboxRecord — permanent failures only. */
+export async function markFailed(id: number, error: string): Promise<void> {
+  const db = await openDb();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  const store = tx.objectStore(STORE_NAME);
+  const record = await promisifyRequest(store.get(id) as IDBRequest<OutboxRecord | undefined>);
+  if (record) {
+    record.status = "failed";
+    record.lastError = error;
+    await promisifyRequest(store.put(record));
+  }
+  db.close();
+}
+
+export async function listFailed(): Promise<OutboxRecord[]> {
+  const db = await openDb();
+  const tx = db.transaction(STORE_NAME, "readonly");
+  const all = await promisifyRequest(tx.objectStore(STORE_NAME).getAll() as IDBRequest<OutboxRecord[]>);
+  db.close();
+  return all.filter((r) => r.status === "failed").sort((a, b) => a.id - b.id);
 }
 
 export async function clearSynced(): Promise<void> {

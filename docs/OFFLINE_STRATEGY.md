@@ -41,10 +41,30 @@ implement a pragmatic first version").
 3. **Sync loop.** A single sync worker (`modules/live-encoding/offline/sync.ts`,
    run from a `useEffect` in the live encoding page) drains the outbox in
    order: pops the oldest pending record, attempts the corresponding Supabase
-   write, marks it `synced` on success, and stops on the first failure
-   (network error) rather than reordering — hockey events must land in the
-   order they happened. It retries with backoff on: `online` browser event,
-   every 5s while any record is pending, and once immediately on mount.
+   write, marks it `synced` on success, and stops on the first *retryable*
+   failure (network error) rather than reordering — hockey events must land
+   in the order they happened. It retries with backoff on: `online` browser
+   event, every 5s while any record is pending, and once immediately on mount.
+
+   **A retryable failure is not the only kind, found the hard way**: a
+   record whose `hockey_events.match_id` pointed at a match deleted after it
+   was queued got a Postgres foreign-key violation (`23503`) on every retry,
+   forever — and because the loop stopped there, every real event tagged
+   after it stayed stuck behind it for the rest of the match, silently.
+   `isPermanentError` (sync.ts) now recognises Postgres integrity-constraint
+   violations (`23xxx`) and RLS/permission denials (`42501`) as *unrecoverable*
+   — retrying the exact same write will never succeed — and the loop marks
+   that record `failed` (a third `OutboxRecord.status`, distinct from
+   `pending`/`synced`) and moves on instead of blocking. `SYNCED_WITH_ERRORS`
+   surfaces this in the header badge; the failed record's error is logged to
+   the console (`listFailed()`, outbox.ts) since there's no dedicated review
+   UI for it yet. A second, related fix: `INSERT_EVENT`/
+   `INSERT_EVENT_PARTICIPANTS` now `upsert` instead of a bare `insert` — a
+   write that actually succeeded server-side but whose response never
+   reached the client (a dropped connection, not just a slow one) looks
+   identical to a failed one from here, and retrying it as a plain insert
+   hit the row's own primary key and produced the exact same kind of stuck
+   queue, just from a different cause.
 4. **Conflict strategy: last-writer-wins per row, ordered by client
    timestamp.** Two analysts are not expected to tag the same match
    simultaneously in Sprint 1 (single-analyst live encoding is the assumed
@@ -58,6 +78,9 @@ implement a pragmatic first version").
    - `OFFLINE` — `navigator.onLine` is false, or the last write attempt failed
      with a network error (more reliable indicator is "last attempt failed",
      since `navigator.onLine` can be a false positive on captive portals).
+   - `SYNCED_WITH_ERRORS` — outbox otherwise empty, but at least one record
+     was permanently unrecoverable (see `isPermanentError` above) and got
+     dropped rather than retried forever.
 
 ## What this buys, and what it doesn't (yet)
 

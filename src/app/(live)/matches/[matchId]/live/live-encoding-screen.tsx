@@ -37,6 +37,11 @@ const SYNC_LABEL: Record<string, { text: string; className: string }> = {
   SYNCED: { text: "Synchronisé", className: "bg-category-possession/20 text-category-possession" },
   SYNCING: { text: "Synchronisation…", className: "bg-category-progression/20 text-category-progression" },
   OFFLINE: { text: "Hors ligne — nouvel essai auto", className: "bg-category-danger/20 text-category-danger" },
+  // Not "OFFLINE": everything retryable did sync — this is instead the
+  // rare permanent-failure case (see isPermanentError, offline/sync.ts) —
+  // at least one event could never be saved (its match/possession no
+  // longer exists) and never will be, no matter how many times it retries.
+  SYNCED_WITH_ERRORS: { text: "Synchronisé — événements perdus, voir console", className: "bg-category-danger/20 text-category-danger" },
   DEMO: { text: "Démo — non enregistré", className: "bg-category-attack/20 text-category-attack" },
 };
 

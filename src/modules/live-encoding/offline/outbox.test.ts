@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { clearSynced, DB_NAME, enqueue, listPending, markSynced } from "./outbox";
+import { clearSynced, DB_NAME, enqueue, listFailed, listPending, markFailed, markSynced } from "./outbox";
 
 beforeEach(async () => {
   // Fresh database per test so records don't leak across tests.
@@ -43,5 +43,22 @@ describe("outbox", () => {
     await clearSynced();
     const pending = await listPending();
     expect(pending).toHaveLength(1);
+  });
+
+  it("marking a record failed removes it from pending and lists it as failed, with its error", async () => {
+    const id = await enqueue("INSERT_EVENT", { type: "GOAL" });
+    await markFailed(id, "violates foreign key constraint");
+
+    expect(await listPending()).toHaveLength(0);
+    const failed = await listFailed();
+    expect(failed).toHaveLength(1);
+    expect(failed[0].lastError).toBe("violates foreign key constraint");
+  });
+
+  it("clearSynced leaves failed records alone — they're a dead end, not cleanup", async () => {
+    const id = await enqueue("INSERT_EVENT", { type: "GOAL" });
+    await markFailed(id, "violates foreign key constraint");
+    await clearSynced();
+    expect(await listFailed()).toHaveLength(1);
   });
 });
