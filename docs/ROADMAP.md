@@ -101,6 +101,25 @@ testing the first on an iPad:
   event-button grid so it can't starve the pitch of space. See ADR-005 in
   ARCHITECTURE.md for the two compounding root causes.
 
+## Sprint 3 (closed 2026-09-19, partial by design)
+
+Training sessions + attendance shipped on the schema that was already ready
+(`training_sessions`, `training_attendance` — see DATA_MODEL.md): create/
+edit/delete a session (date, `session_type`, title, description,
+`planned_load`), with attendance pre-populated from the team's current
+roster and each player's status (`PLANNED`/`PRESENT`/`ABSENT`/`INJURED`/
+`REHAB`/`MODIFIED`) saved immediately on change. `modules/training/`,
+`(app)/training/`.
+
+**Deliberately not built**: the STATSports CSV import half of this sprint
+(see INTEGRATIONS.md). Per this doc's own principle ("never fake a working
+integration"), building a parser against a specific vendor's column format
+without ever having seen a real export risks shipping something that breaks
+on the first real file — so this waits for the club to actually have a
+STATSports (or other sensor) CSV export in hand, not a guessed format.
+`performance_metrics`/`physical_sessions`/`athlete_physical_sessions` remain
+schema-ready and unused, same as before this sprint.
+
 ## Sprint 1 acceptance walkthrough
 
 Mapped against the spec's own §85 list (1–41). Each numbered item there

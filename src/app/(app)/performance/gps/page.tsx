@@ -4,7 +4,7 @@ export default function GpsPage() {
   return (
     <ComingSoon
       title="GPS"
-      note="STATSports CSV import and GPS metrics land in Sprint 3. See docs/INTEGRATIONS.md for the planned pipeline."
+      note="STATSports CSV import and GPS metrics are ready to build as soon as a real export file is available — see docs/INTEGRATIONS.md for the planned pipeline."
     />
   );
 }
