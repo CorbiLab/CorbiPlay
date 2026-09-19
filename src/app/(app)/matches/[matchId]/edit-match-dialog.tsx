@@ -8,9 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import type { HomeAway } from "@/types/database";
+import type { HomeAway, MatchStatus } from "@/types/database";
 
 const initialState: UpdateMatchState = {};
+
+type MatchFormat = "QUARTERS" | "HALVES";
+const MATCH_FORMAT_LABEL: Record<MatchFormat, string> = { QUARTERS: "Quarts-temps (4)", HALVES: "Mi-temps (2)" };
 
 interface EditMatchDialogProps {
   matchId: string;
@@ -19,21 +22,46 @@ interface EditMatchDialogProps {
   venue: string | null;
   competition: string | null;
   homeOrAway: HomeAway;
+  status: MatchStatus;
+  numberOfQuarters: number;
+  quarterDurationMinutes: number;
 }
 
-export function EditMatchDialog({ matchId, opponentName, matchDate, venue, competition, homeOrAway }: EditMatchDialogProps) {
+export function EditMatchDialog({
+  matchId,
+  opponentName,
+  matchDate,
+  venue,
+  competition,
+  homeOrAway,
+  status,
+  numberOfQuarters,
+  quarterDurationMinutes,
+}: EditMatchDialogProps) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(updateMatch, initialState);
   const submittedRef = useRef(false);
+  // The clock assumes every period is the same length (see actions.ts) — once
+  // the match has actually started, changing the format would silently
+  // corrupt already-recorded events' match-elapsed time, so it's only
+  // editable before kickoff.
+  const canEditFormat = status === "SCHEDULED" || status === "WARMUP";
+  const initialFormat: MatchFormat = numberOfQuarters === 2 ? "HALVES" : "QUARTERS";
 
   // Snapshot the fields only at the moment the dialog opens — see
   // edit-player-dialog.tsx for why (revalidatePath re-renders this with
   // fresh props while the dialog is still closing, which would otherwise
   // trip Base UI's uncontrolled-field warning).
   const [fields, setFields] = useState({ opponentName, matchDate, venue, competition, homeOrAway });
+  const [matchFormat, setMatchFormat] = useState<MatchFormat>(initialFormat);
+  const [periodDurationMinutes, setPeriodDurationMinutes] = useState(quarterDurationMinutes);
 
   function handleOpenChange(next: boolean) {
-    if (next) setFields({ opponentName, matchDate, venue, competition, homeOrAway });
+    if (next) {
+      setFields({ opponentName, matchDate, venue, competition, homeOrAway });
+      setMatchFormat(initialFormat);
+      setPeriodDurationMinutes(quarterDurationMinutes);
+    }
     setOpen(next);
   }
 
@@ -94,6 +122,41 @@ export function EditMatchDialog({ matchId, opponentName, matchDate, venue, compe
             <Label htmlFor="edit-competition">Compétition</Label>
             <Input id="edit-competition" name="competition" defaultValue={fields.competition ?? ""} />
           </div>
+          {canEditFormat ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="edit-matchFormat">Format</Label>
+                <Select name="matchFormat" value={matchFormat} onValueChange={(value) => setMatchFormat(value as MatchFormat)}>
+                  <SelectTrigger id="edit-matchFormat" className="w-full">
+                    <SelectValue>{(value: string) => MATCH_FORMAT_LABEL[value as MatchFormat]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="QUARTERS">{MATCH_FORMAT_LABEL.QUARTERS}</SelectItem>
+                    <SelectItem value="HALVES">{MATCH_FORMAT_LABEL.HALVES}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-periodDurationMinutes">
+                  Durée par {matchFormat === "HALVES" ? "mi-temps" : "quart-temps"} (min)
+                </Label>
+                <Input
+                  id="edit-periodDurationMinutes"
+                  name="periodDurationMinutes"
+                  type="number"
+                  min={1}
+                  required
+                  value={periodDurationMinutes}
+                  onChange={(e) => setPeriodDurationMinutes(Number(e.target.value))}
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Format : {MATCH_FORMAT_LABEL[initialFormat]} de {quarterDurationMinutes} min — modifiable uniquement avant le
+              coup d&apos;envoi.
+            </p>
+          )}
           {state.error && <p className="text-sm text-destructive">{state.error}</p>}
           <DialogFooter>
             <Button type="submit" disabled={pending}>

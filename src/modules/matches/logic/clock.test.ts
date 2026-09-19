@@ -8,6 +8,7 @@ import {
   isRunning,
   parseClock,
   pauseQuarter,
+  resetQuarter,
   resumeQuarter,
   startQuarter,
 } from "./clock";
@@ -63,6 +64,26 @@ describe("match clock", () => {
     const started = startQuarter(1, t0);
     const ended = endQuarter(started, t0 + 900_000);
     expect(getQuarterElapsedMs(ended, t0 + 5_000_000)).toBe(900_000);
+  });
+
+  it("resetQuarter re-anchors a running clock back to 0, still running", () => {
+    const t0 = 1_000_000;
+    const started = startQuarter(1, t0);
+    const running = getQuarterElapsedMs(started, t0 + 300_000);
+    expect(running).toBe(300_000);
+    const reset = resetQuarter(started, t0 + 300_000);
+    expect(isRunning(reset)).toBe(true);
+    expect(getQuarterElapsedMs(reset, t0 + 300_000)).toBe(0);
+    expect(getQuarterElapsedMs(reset, t0 + 305_000)).toBe(5_000);
+  });
+
+  it("resetQuarter re-anchors a paused clock back to 0, still paused", () => {
+    const t0 = 1_000_000;
+    const started = startQuarter(1, t0);
+    const paused = pauseQuarter(started, t0 + 300_000);
+    const reset = resetQuarter(paused, t0 + 300_000);
+    expect(isPaused(reset)).toBe(true);
+    expect(getQuarterElapsedMs(reset, t0 + 999_000)).toBe(0);
   });
 
   it("formats mm:ss", () => {

@@ -7,6 +7,13 @@ import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_QUARTERS, DEFAULT_QUARTER_DURATION_MINUTES } from "@/config/app";
 import { parseClock } from "@/modules/matches/logic/clock";
 
+// Both formats are "N equal periods of M minutes" — the schema already models
+// exactly that (number_of_quarters/quarter_duration_minutes), so halves is
+// just number_of_quarters=2 with its own duration, not a new column. The
+// format choice only decides what N defaults to; the analyst still types the
+// actual minutes per period, since that varies by competition/age category.
+const MATCH_FORMAT_PERIODS: Record<"QUARTERS" | "HALVES", number> = { QUARTERS: 4, HALVES: 2 };
+
 const createMatchSchema = z.object({
   teamId: z.string().min(1),
   seasonId: z.string().min(1),
@@ -15,6 +22,8 @@ const createMatchSchema = z.object({
   venue: z.string().optional(),
   competition: z.string().optional(),
   homeOrAway: z.enum(["HOME", "AWAY"]),
+  matchFormat: z.enum(["QUARTERS", "HALVES"]),
+  periodDurationMinutes: z.coerce.number().int().positive(),
 });
 
 export interface CreateMatchState {
@@ -30,6 +39,8 @@ export async function createMatch(_prev: CreateMatchState, formData: FormData): 
     venue: formData.get("venue") || undefined,
     competition: formData.get("competition") || undefined,
     homeOrAway: formData.get("homeOrAway"),
+    matchFormat: formData.get("matchFormat"),
+    periodDurationMinutes: formData.get("periodDurationMinutes"),
   });
 
   if (!parsed.success) {
@@ -47,8 +58,8 @@ export async function createMatch(_prev: CreateMatchState, formData: FormData): 
       venue: parsed.data.venue ?? null,
       competition: parsed.data.competition ?? null,
       home_or_away: parsed.data.homeOrAway,
-      number_of_quarters: DEFAULT_QUARTERS,
-      quarter_duration_minutes: DEFAULT_QUARTER_DURATION_MINUTES,
+      number_of_quarters: MATCH_FORMAT_PERIODS[parsed.data.matchFormat] ?? DEFAULT_QUARTERS,
+      quarter_duration_minutes: parsed.data.periodDurationMinutes ?? DEFAULT_QUARTER_DURATION_MINUTES,
     })
     .select("id")
     .single();
@@ -66,6 +77,8 @@ const updateMatchSchema = z.object({
   venue: z.string().optional(),
   competition: z.string().optional(),
   homeOrAway: z.enum(["HOME", "AWAY"]),
+  matchFormat: z.enum(["QUARTERS", "HALVES"]).optional(),
+  periodDurationMinutes: z.coerce.number().int().positive().optional(),
 });
 
 export interface UpdateMatchState {
@@ -80,10 +93,29 @@ export async function updateMatch(_prev: UpdateMatchState, formData: FormData): 
     venue: formData.get("venue") || undefined,
     competition: formData.get("competition") || undefined,
     homeOrAway: formData.get("homeOrAway"),
+    matchFormat: formData.get("matchFormat") || undefined,
+    periodDurationMinutes: formData.get("periodDurationMinutes") || undefined,
   });
   if (!parsed.success) return { error: "Merci de vérifier les champs du formulaire." };
 
   const supabase = await createClient();
+
+  // The clock (getMatchElapsedMs) assumes every period is the same length —
+  // changing the format once quarters have actually started playing would
+  // silently corrupt every already-recorded event's match-elapsed time, so
+  // the form only sends these fields while the match is still SCHEDULED/
+  // WARMUP, and this re-checks that server-side rather than trusting the UI.
+  let formatPatch: { number_of_quarters: number; quarter_duration_minutes: number } | null = null;
+  if (parsed.data.matchFormat && parsed.data.periodDurationMinutes) {
+    const { data: current } = await supabase.from("matches").select("status").eq("id", parsed.data.matchId).single();
+    if (current && (current.status === "SCHEDULED" || current.status === "WARMUP")) {
+      formatPatch = {
+        number_of_quarters: MATCH_FORMAT_PERIODS[parsed.data.matchFormat],
+        quarter_duration_minutes: parsed.data.periodDurationMinutes,
+      };
+    }
+  }
+
   const { error } = await supabase
     .from("matches")
     .update({
@@ -92,6 +124,7 @@ export async function updateMatch(_prev: UpdateMatchState, formData: FormData): 
       venue: parsed.data.venue ?? null,
       competition: parsed.data.competition ?? null,
       home_or_away: parsed.data.homeOrAway,
+      ...formatPatch,
     })
     .eq("id", parsed.data.matchId);
   if (error) return { error: error.message };

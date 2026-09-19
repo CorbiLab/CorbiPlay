@@ -83,6 +83,24 @@ export function endQuarter(anchor: ClockAnchor, now: number = Date.now()): Clock
   return isPaused(anchor) ? { ...anchor } : pauseQuarter(anchor, now);
 }
 
+/**
+ * Re-anchors the current quarter back to 0 elapsed — for correcting a
+ * mis-started clock (tapped "Démarrer" too early, forgot to pause at a
+ * whistle, etc.) without leaving the quarter altogether. Never touches
+ * `currentQuarter` — this restarts the clock, not the quarter count.
+ * Preserves running vs. paused: re-anchoring a paused clock keeps it
+ * paused (both anchors set to `now`, elapsed 0), a running clock keeps
+ * running from 0.
+ */
+export function resetQuarter(anchor: ClockAnchor, now: number = Date.now()): ClockAnchorPatch {
+  const nowIso = new Date(now).toISOString();
+  return {
+    quarterStartedAt: nowIso,
+    quarterPausedAt: isPaused(anchor) ? nowIso : null,
+    quarterPausedMsTotal: 0,
+  };
+}
+
 export function formatClock(elapsedMs: number): string {
   const totalSeconds = Math.floor(elapsedMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);

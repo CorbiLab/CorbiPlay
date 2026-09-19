@@ -9,6 +9,7 @@ import {
   getMatchElapsedMs,
   getQuarterElapsedMs,
   pauseQuarter,
+  resetQuarter as resetQuarterAnchor,
   resumeQuarter,
   startQuarter,
   type ClockAnchor,
@@ -111,6 +112,7 @@ interface LiveEncodingState {
   pause: () => void;
   resume: () => void;
   endQuarter: () => void;
+  resetQuarter: () => void;
   nextQuarter: () => void;
   finishMatch: () => void;
 
@@ -514,18 +516,31 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
   },
 
   pause: () => {
-    const patch = pauseQuarter(get().clockAnchor, Date.now());
+    const state = get();
+    const patch = pauseQuarter(state.clockAnchor, Date.now());
     set({ clockAnchor: patch, status: "BREAK" });
+    persistClockAnchor(state.matchId, "BREAK", patch);
   },
 
   resume: () => {
-    const patch = resumeQuarter(get().clockAnchor, Date.now());
+    const state = get();
+    const patch = resumeQuarter(state.clockAnchor, Date.now());
     set({ clockAnchor: patch, status: "LIVE" });
+    persistClockAnchor(state.matchId, "LIVE", patch);
   },
 
   endQuarter: () => {
-    const patch = endQuarterAnchor(get().clockAnchor, Date.now());
+    const state = get();
+    const patch = endQuarterAnchor(state.clockAnchor, Date.now());
     set({ clockAnchor: patch, status: "BREAK" });
+    persistClockAnchor(state.matchId, "BREAK", patch);
+  },
+
+  resetQuarter: () => {
+    const state = get();
+    const patch = resetQuarterAnchor(state.clockAnchor, Date.now());
+    set({ clockAnchor: patch });
+    persistClockAnchor(state.matchId, state.status, patch);
   },
 
   nextQuarter: () => {
@@ -603,3 +618,25 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
 
   getQuarterElapsedMs: (nowMs) => getQuarterElapsedMs(get().clockAnchor, nowMs),
 }));
+
+/**
+ * pause/resume/endQuarter/resetQuarter all mutate clockAnchor locally, but
+ * for a while only startQuarter/nextQuarter/finishMatch actually persisted
+ * it — a pause never reached `matches.quarter_paused_at`, so a reload (or
+ * another device/tab reading the same match) saw the clock as still
+ * running from its last start, even though the analyst had paused it.
+ * Every clock mutation must go through this so the anchor in the DB never
+ * drifts from what's on screen.
+ */
+function persistClockAnchor(matchId: string, status: MatchStatus, patch: ClockAnchor): void {
+  if (!isSupabaseConfigured()) return;
+  queueWrite("UPDATE_MATCH_CLOCK", {
+    matchId,
+    patch: {
+      status,
+      quarter_started_at: patch.quarterStartedAt,
+      quarter_paused_at: patch.quarterPausedAt,
+      quarter_paused_ms_total: patch.quarterPausedMsTotal,
+    },
+  }).then(() => useLiveEncodingStore.getState().syncNow());
+}

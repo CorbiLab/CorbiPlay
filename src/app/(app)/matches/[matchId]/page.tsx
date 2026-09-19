@@ -39,6 +39,9 @@ export default async function MatchOverviewPage({ params }: { params: Promise<{ 
               venue={match.venue}
               competition={match.competition}
               homeOrAway={match.home_or_away}
+              status={match.status}
+              numberOfQuarters={match.number_of_quarters}
+              quarterDurationMinutes={match.quarter_duration_minutes}
             />
             <DeleteMatchButton matchId={match.id} opponentName={match.opponent_name} />
           </div>

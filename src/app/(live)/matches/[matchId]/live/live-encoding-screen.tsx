@@ -9,8 +9,9 @@ import { ZonePitch } from "@/components/pitch/zone-pitch";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, Undo2, Users } from "lucide-react";
+import { ChevronLeft, RotateCcw, Undo2, Users } from "lucide-react";
 import type { EncodingLevel } from "@/modules/live-encoding/event-definitions";
 import type { Match, HockeyEvent, EventParticipant, Possession } from "@/types/database";
 import type { RosterEntry } from "@/modules/matches/queries";
@@ -49,6 +50,7 @@ export function LiveEncodingScreen({ match, roster, initialEvents, initialEventP
   const init = useLiveEncodingStore((s) => s.init);
   const [now, setNow] = useState(0);
   const [rosterOverride, setRosterOverride] = useState<{ level: EncodingLevel; visible: boolean } | null>(null);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   useEffect(() => {
     init({
@@ -113,12 +115,19 @@ export function LiveEncodingScreen({ match, roster, initialEvents, initialEventP
   const pause = useLiveEncodingStore((s) => s.pause);
   const resume = useLiveEncodingStore((s) => s.resume);
   const endQuarter = useLiveEncodingStore((s) => s.endQuarter);
+  const resetQuarter = useLiveEncodingStore((s) => s.resetQuarter);
   const nextQuarter = useLiveEncodingStore((s) => s.nextQuarter);
   const finishMatch = useLiveEncodingStore((s) => s.finishMatch);
 
   const quarterElapsedMs = useLiveEncodingStore((s) => s.getQuarterElapsedMs(now));
   const isRunning = Boolean(clockAnchor.quarterStartedAt && !clockAnchor.quarterPausedAt);
   const hasStarted = Boolean(clockAnchor.quarterStartedAt);
+  // "quarter" in the data model covers both formats (spec/DB: number_of_quarters=2
+  // for halves) — only the wording changes here, never the underlying field.
+  const isHalves = numberOfQuarters === 2;
+  const periodAbbrev = isHalves ? "MT" : "Q";
+  const periodLabel = isHalves ? "Mi-temps" : "Quart-temps";
+  const periodOf = isHalves ? "de la mi-temps" : "du quart-temps";
 
   function handlePitchTap({ x, y }: { x: number; y: number }) {
     if (!draft) return;
@@ -142,7 +151,7 @@ export function LiveEncodingScreen({ match, roster, initialEvents, initialEventP
         <div className="font-medium">
           Nous <span className="font-mono text-xl">{ourScore}</span> — <span className="font-mono text-xl">{opponentScore}</span> {opponentName}
         </div>
-        <Badge variant="outline">Q{currentQuarter || "-"} / {numberOfQuarters}</Badge>
+        <Badge variant="outline">{periodAbbrev}{currentQuarter || "-"} / {numberOfQuarters}</Badge>
         <span className="font-mono text-2xl tabular-nums">{formatClock(quarterElapsedMs)}</span>
         {openPossessionId && (
           <Badge className="bg-category-possession/20 text-category-possession" variant="secondary">
@@ -152,7 +161,7 @@ export function LiveEncodingScreen({ match, roster, initialEvents, initialEventP
 
         <div className="flex items-center gap-2">
           {!hasStarted && status !== "FINISHED" && (
-            <Button onClick={startQuarterAction}>Démarrer Q{currentQuarter || 1}</Button>
+            <Button onClick={startQuarterAction}>Démarrer {periodLabel} {currentQuarter || 1}</Button>
           )}
           {hasStarted && status !== "FINISHED" && (
             <>
@@ -161,15 +170,42 @@ export function LiveEncodingScreen({ match, roster, initialEvents, initialEventP
               ) : (
                 <Button variant="outline" onClick={resume}>Reprendre</Button>
               )}
-              <Button variant="outline" onClick={endQuarter}>Fin du quart-temps</Button>
+              <Button variant="outline" size="icon" aria-label="Remettre le chrono à 0" onClick={() => setResetConfirmOpen(true)}>
+                <RotateCcw className="size-4" />
+              </Button>
+              <Button variant="outline" onClick={endQuarter}>Fin {periodOf}</Button>
               {currentQuarter < numberOfQuarters ? (
-                <Button onClick={nextQuarter}>Quart-temps suivant</Button>
+                <Button onClick={nextQuarter}>{periodLabel} suivant{numberOfQuarters === 2 ? "e" : ""}</Button>
               ) : (
                 <Button variant="destructive" onClick={finishMatch}>Terminer le match</Button>
               )}
             </>
           )}
         </div>
+
+        <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Remettre le chrono à 0 ?</DialogTitle>
+              <DialogDescription>
+                Le temps écoulé de {periodAbbrev}{currentQuarter || 1} repart de 00:00 ({isRunning ? "toujours en cours" : "toujours en pause"}).
+                Les événements déjà encodés dans ce quart-temps ne sont pas modifiés.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline" />}>Annuler</DialogClose>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  resetQuarter();
+                  setResetConfirmOpen(false);
+                }}
+              >
+                Remettre à 0
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <div className="ml-auto flex items-center gap-3">
           {/* Who this event/possession is for (spec §16: team-level only, no
