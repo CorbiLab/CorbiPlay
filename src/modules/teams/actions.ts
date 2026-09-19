@@ -81,3 +81,19 @@ export async function updateTeam(_prev: UpdateTeamState, formData: FormData): Pr
   revalidatePath(`/teams/${parsed.data.teamId}`);
   return {};
 }
+
+/**
+ * Soft delete: same pattern as `archivePlayer` (players/actions.ts) — a team
+ * with any match history keeps it (matches/rosters/events aren't touched),
+ * this just hides the team from the switcher, roster pickers, and
+ * `listTeams` (which already filters on `active`). Existing matches stay
+ * reachable directly by URL.
+ */
+export async function archiveTeam(teamId: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("teams").update({ active: false }).eq("id", teamId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/settings/teams");
+  return {};
+}

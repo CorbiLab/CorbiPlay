@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { PlayerAvatar } from "@/components/shared/player-avatar";
 import { NewTeamForm } from "./new-team-form";
 import { EditTeamDialog } from "./edit-team-dialog";
+import { DeleteTeamButton } from "./delete-team-button";
 
 export default async function TeamsSettingsPage() {
   const club = await getCurrentClub();
@@ -45,6 +46,7 @@ async function TeamRow({ team }: { team: Awaited<ReturnType<typeof listTeams>>[n
         <div className="flex items-center gap-2">
           <Badge variant="outline">{team.age_category}</Badge>
           <EditTeamDialog teamId={team.id} name={team.name} shortName={team.short_name} ageCategory={team.age_category} gender={team.gender} />
+          <DeleteTeamButton teamId={team.id} name={team.name} />
         </div>
       </div>
       {players.length > 0 ? (
