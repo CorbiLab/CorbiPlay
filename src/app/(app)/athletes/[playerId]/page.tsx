@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
 import { getPlayer } from "@/modules/athletes/queries";
 import { getHockeyEventsForPlayer } from "@/modules/matches/queries";
+import { listTeams } from "@/modules/teams/queries";
 import { computeMatchStats } from "@/modules/analytics/logic/match-stats";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlayerPhotoUpload } from "./photo-upload";
 import { EditPlayerDialog } from "./edit-player-dialog";
 import { DeletePlayerButton } from "./delete-player-button";
-import { POSITION_LABEL } from "@/modules/athletes/position-labels";
+import { MembershipManager } from "./membership-manager";
 
 const MEMBERSHIP_LABEL: Record<string, string> = {
   PERMANENT: "Permanent",
@@ -22,8 +22,11 @@ export default async function AthleteProfilePage({ params }: { params: Promise<{
   const player = await getPlayer(playerId);
   if (!player) notFound();
 
-  const events = await getHockeyEventsForPlayer(playerId);
+  const [events, teams] = await Promise.all([getHockeyEventsForPlayer(playerId), listTeams(player.club_id)]);
   const stats = computeMatchStats(events).perPlayer.get(playerId);
+  const activeMemberships = player.memberships.filter((m) => m.active);
+  const joinedTeamIds = new Set(activeMemberships.map((m) => m.team.id));
+  const availableTeams = teams.filter((t) => !joinedTeamIds.has(t.id));
 
   return (
     <div className="space-y-6">
@@ -58,19 +61,7 @@ export default async function AthleteProfilePage({ params }: { params: Promise<{
           {/* This is the key Sprint 1 acceptance point (spec §85 items 40-41):
               the athlete belongs to the CLUB, with independent, possibly
               concurrent team memberships — never a single permanent team. */}
-          <div className="flex flex-wrap gap-2">
-            {player.memberships
-              .filter((m) => m.active)
-              .map((m) => (
-                <Badge key={m.id} variant={m.membership_type === "PERMANENT" ? "default" : "outline"} className="gap-1.5 py-1.5">
-                  {m.team.name}
-                  {m.positions.length > 0 && (
-                    <span className="text-[10px] opacity-70">{m.positions.map((p) => POSITION_LABEL[p] ?? p).join(" / ")}</span>
-                  )}
-                  <span className="text-[10px] uppercase opacity-70">{MEMBERSHIP_LABEL[m.membership_type] ?? m.membership_type}</span>
-                </Badge>
-              ))}
-          </div>
+          <MembershipManager playerId={player.id} memberships={activeMemberships} teams={availableTeams} />
         </CardContent>
       </Card>
 

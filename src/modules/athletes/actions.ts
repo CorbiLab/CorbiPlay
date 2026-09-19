@@ -141,6 +141,75 @@ export async function archivePlayer(playerId: string): Promise<{ error?: string 
   return {};
 }
 
+const addMembershipSchema = z.object({
+  playerId: z.string().min(1),
+  teamId: z.string().min(1),
+  membershipType: z.enum(["PERMANENT", "TEMPORARY", "GUEST", "TRAINING_ONLY"]),
+});
+
+export interface AddMembershipState {
+  error?: string;
+}
+
+/**
+ * Adds a team to a player — either a genuinely new team (a player can belong
+ * to more than one at once, e.g. dual U16/U19 registration) or the fix for a
+ * wrong one picked at creation: end the wrong membership (`endMembership`
+ * below) and add the right one here. Never edits `team_id` on an existing
+ * row in place — a real age-group move should leave the old membership's
+ * dates/history intact rather than rewriting which team it always pointed
+ * to, and a plain creation mistake is just as well served by the same two
+ * actions instead of a third, single-purpose one.
+ */
+export async function addMembership(_prev: AddMembershipState, formData: FormData): Promise<AddMembershipState> {
+  const parsed = addMembershipSchema.safeParse({
+    playerId: formData.get("playerId"),
+    teamId: formData.get("teamId"),
+    membershipType: formData.get("membershipType") || "PERMANENT",
+  });
+  if (!parsed.success) return { error: "Merci de vérifier les champs du formulaire." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("team_memberships").insert({
+    team_id: parsed.data.teamId,
+    player_id: parsed.data.playerId,
+    membership_type: parsed.data.membershipType,
+    positions: [],
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/athletes/${parsed.data.playerId}`);
+  revalidatePath("/athletes");
+  return {};
+}
+
+/**
+ * Ends a membership (end_date + active=false) rather than deleting the row —
+ * it stays in "Historique" and any match rosters/events tagged under it are
+ * unaffected. This is the other half of correcting a wrong team: end the
+ * wrong one, `addMembership` the right one.
+ */
+export async function endMembership(membershipId: string): Promise<{ error?: string; playerId?: string }> {
+  const supabase = await createClient();
+  const { data: membership, error: fetchError } = await supabase
+    .from("team_memberships")
+    .select("player_id")
+    .eq("id", membershipId)
+    .maybeSingle();
+  if (fetchError) return { error: fetchError.message };
+  if (!membership) return { error: "Appartenance introuvable." };
+
+  const { error } = await supabase
+    .from("team_memberships")
+    .update({ end_date: new Date().toISOString().slice(0, 10), active: false })
+    .eq("id", membershipId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/athletes/${membership.player_id}`);
+  revalidatePath("/athletes");
+  return { playerId: membership.player_id };
+}
+
 /**
  * Persists the photo URL after the browser has already uploaded the file
  * straight to Supabase Storage (see athletes/photo-upload.tsx) — this action
