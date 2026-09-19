@@ -12,7 +12,14 @@ async function applyRecord(record: OutboxRecord): Promise<void> {
 
   switch (record.kind) {
     case "INSERT_EVENT": {
-      const { error } = await supabase.from("hockey_events").insert(record.payload as never);
+      // upsert, not insert: a client-generated id (makeLocalId) can be
+      // resent — the request succeeding server-side but its response never
+      // reaching the client (a dropped connection, not just a slow one) is
+      // exactly what "retry the whole queue" looks like from here, and a
+      // bare insert turns that into a permanent 409 that blocks every event
+      // queued after it (drainOutbox stops at the first failure — see
+      // offline/sync.ts). Re-sending identical data is a harmless no-op.
+      const { error } = await supabase.from("hockey_events").upsert(record.payload as never);
       if (error) throw error;
       return;
     }
@@ -32,7 +39,8 @@ async function applyRecord(record: OutboxRecord): Promise<void> {
       return;
     }
     case "INSERT_EVENT_PARTICIPANTS": {
-      const { error } = await supabase.from("event_participants").insert(record.payload as never);
+      // Same idempotency reasoning as INSERT_EVENT above.
+      const { error } = await supabase.from("event_participants").upsert(record.payload as never);
       if (error) throw error;
       return;
     }
