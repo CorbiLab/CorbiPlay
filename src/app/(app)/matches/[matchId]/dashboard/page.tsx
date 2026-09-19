@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EventCountChart } from "./event-count-chart";
 import { ConversionFunnelView } from "./conversion-funnel";
 import { MomentumChart } from "./momentum-chart";
-import { EventHeatmap } from "./event-heatmap";
+import { PlayerFilteredPanels } from "./player-filtered-panels";
 
 export default async function MatchDashboardPage({ params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await params;
@@ -55,7 +55,6 @@ export default async function MatchDashboardPage({ params }: { params: Promise<{
     ? storedStints.map((s) => ({ playerId: s.player_id, quarter: s.quarter, startMatchElapsedMs: s.start_match_elapsed_ms, endMatchElapsedMs: s.end_match_elapsed_ms }))
     : computeStints(starters, substitutionEvents, matchDurationMs);
 
-  const chartData = Object.entries(stats.countsByType).map(([type, count]) => ({ type, count: count ?? 0 }));
   const opponentChartData = Object.entries(opponentEventCounts).map(([type, count]) => ({ type, count: count ?? 0 }));
 
   return (
@@ -100,23 +99,7 @@ export default async function MatchDashboardPage({ params }: { params: Promise<{
         </Card>
       </div>
 
-      <Card>
-        <p className="px-5 font-heading font-semibold">Carte de chaleur</p>
-        <CardContent className="px-5 pt-3">
-          {events.some((e) => !e.deleted_at && e.start_x != null) ? (
-            <EventHeatmap events={events} />
-          ) : (
-            <p className="text-sm text-muted-foreground">Aucun événement positionné pour l&apos;instant.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <p className="px-5 font-heading font-semibold">Répartition des événements</p>
-        <CardContent className="px-5 pt-3">
-          {chartData.length > 0 ? <EventCountChart data={chartData} /> : <p className="text-sm text-muted-foreground">Aucun événement enregistré pour l&apos;instant.</p>}
-        </CardContent>
-      </Card>
+      <PlayerFilteredPanels events={events} roster={roster} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
