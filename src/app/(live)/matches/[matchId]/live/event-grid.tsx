@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveEncodingStore } from "@/modules/live-encoding/store";
-import { LIVE_ENCODING_BUTTON_GROUPS, getEventDefinition } from "@/modules/live-encoding/event-definitions";
+import { getLiveEncodingButtonGroups, getEventDefinition } from "@/modules/live-encoding/event-definitions";
 import { CATEGORY_ICON, CATEGORY_BUTTON_CLASS, EVENT_TYPE_BUTTON_CLASS_OVERRIDE } from "@/modules/live-encoding/category-colors";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +29,8 @@ const GRID_TEMPLATE_COLUMNS = "repeat(auto-fill, minmax(6.5rem, 1fr))";
 export function EventGrid() {
   const draft = useLiveEncodingStore((s) => s.draft);
   const beginDraft = useLiveEncodingStore((s) => s.beginDraft);
-  const types = LIVE_ENCODING_BUTTON_GROUPS.flatMap((group) => group.types);
+  const encodingLevel = useLiveEncodingStore((s) => s.encodingLevel);
+  const types = getLiveEncodingButtonGroups(encodingLevel).flatMap((group) => group.types);
 
   return (
     <div className="grid gap-2" style={{ gridTemplateColumns: GRID_TEMPLATE_COLUMNS }}>

@@ -74,9 +74,12 @@ never required outside substitutions), a PRESS event type with full
 multi-player support (`event_participants`), and post-match enrichment
 actions (`patchEvent`/`addEventParticipants`) that assign players after the
 fact without duplicating the event. See ADR-003 in ARCHITECTURE.md and
-HOCKEY_ANALYTICS.md. Deferred: a dedicated ADVANCED-only screen layout, and
-a polished post-match review UI (the underlying actions exist and are
-tested; the screen to use them from is Sprint 2+).
+HOCKEY_ANALYTICS.md. Deferred at the time: a dedicated ADVANCED-only screen
+layout (still true — ADVANCED renders identically to STANDARD), and a
+post-match review screen — since built: `/matches/[matchId]/review`
+(`event-review-list.tsx`) lists every event and lets an analyst tap a
+player onto one tagged without any, exactly what `patchEvent`/
+`addEventParticipants` were built for.
 
 ## Opponent-side tagging + live-encoding fullscreen (shipped now)
 

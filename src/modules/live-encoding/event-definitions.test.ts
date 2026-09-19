@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EVENT_DEFINITIONS, resolvePlayerRequirement } from "./event-definitions";
+import { EVENT_DEFINITIONS, resolvePlayerRequirement, getLiveEncodingButtonGroups } from "./event-definitions";
 
 describe("resolvePlayerRequirement", () => {
   it("relaxes a RECOMMENDED type to OPTIONAL in BASIC mode", () => {
@@ -27,5 +27,37 @@ describe("resolvePlayerRequirement", () => {
       if (def.type === "PLAYER_IN" || def.type === "PLAYER_OUT") continue;
       expect(def.playerRequirement).not.toBe("REQUIRED");
     }
+  });
+});
+
+describe("getLiveEncodingButtonGroups", () => {
+  it("BASIC shows only the bare-minimum scoreline/transition/discipline set", () => {
+    const types = getLiveEncodingButtonGroups("BASIC").flatMap((g) => g.types);
+    expect(types.sort()).toEqual(
+      ["BALL_WIN", "CIRCLE_ENTRY", "GOAL", "GREEN_CARD", "PC_WON", "RED_CARD", "TURNOVER", "YELLOW_CARD"].sort()
+    );
+  });
+
+  it("STANDARD is a strict superset of BASIC", () => {
+    const basic = new Set(getLiveEncodingButtonGroups("BASIC").flatMap((g) => g.types));
+    const standard = new Set(getLiveEncodingButtonGroups("STANDARD").flatMap((g) => g.types));
+    for (const type of basic) expect(standard.has(type)).toBe(true);
+    expect(standard.size).toBeGreaterThan(basic.size);
+  });
+
+  it("STANDARD and ADVANCED both show the full original grid (unchanged, identical for now)", () => {
+    const standard = getLiveEncodingButtonGroups("STANDARD").flatMap((g) => g.types);
+    const advanced = getLiveEncodingButtonGroups("ADVANCED").flatMap((g) => g.types);
+    expect(standard).toEqual(advanced);
+    expect(standard).toContain("PRESS");
+    expect(standard).toContain("POSSESSION_START");
+    expect(standard).toContain("KEY_PASS");
+  });
+
+  it("drops a category entirely when none of its types survive the level's allowlist", () => {
+    const basicCategories = getLiveEncodingButtonGroups("BASIC").map((g) => g.category);
+    expect(basicCategories).not.toContain("PRESS");
+    expect(basicCategories).not.toContain("POSSESSION");
+    expect(basicCategories).not.toContain("DEFENCE");
   });
 });

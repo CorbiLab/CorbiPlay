@@ -126,6 +126,9 @@ export function resolvePlayerRequirement(def: EventDefinition, level: EncodingLe
  * generic buttons — see modules/live-encoding for the substitution UI and the
  * "ASSIST?" smart suggestion after a GOAL (spec §31), which sets
  * GOAL.secondary_player_id rather than creating a second event row.
+ *
+ * This is the full (ADVANCED) grid. BASIC/STANDARD are narrower slices of
+ * the same list, not separate definitions — see LEVEL_BUTTON_TYPES.
  */
 export const LIVE_ENCODING_BUTTON_GROUPS: { category: EventCategory; types: EventType[] }[] = [
   { category: "POSSESSION", types: ["POSSESSION_START", "POSSESSION_END"] },
@@ -137,6 +140,34 @@ export const LIVE_ENCODING_BUTTON_GROUPS: { category: EventCategory; types: Even
   { category: "DEFENCE", types: ["INTERCEPTION", "TACKLE", "DEFLECTION"] },
   { category: "DISCIPLINE", types: ["FOUL", "GREEN_CARD", "YELLOW_CARD", "RED_CARD"] },
 ];
+
+/**
+ * Per-level allowlist restricting LIVE_ENCODING_BUTTON_GROUPS down to what
+ * that level's grid actually shows. `null` means "no restriction" (every
+ * type in LIVE_ENCODING_BUTTON_GROUPS). Before the encoding-levels rework
+ * requested 2026-09-19, all three levels showed that same full grid — only
+ * player-attribution strictness varied (resolvePlayerRequirement). STANDARD
+ * keeps that original full grid unchanged; BASIC is the new, deliberately
+ * trimmed-down set for a solo analyst who just wants scoreline/transitions/
+ * cards. ADVANCED is currently identical to STANDARD (both `null`) — the
+ * still-open item is a dedicated ADVANCED-only screen *layout*, not a wider
+ * button set (see docs/ROADMAP.md).
+ */
+const LEVEL_BUTTON_TYPES: Record<EncodingLevel, EventType[] | null> = {
+  BASIC: ["BALL_WIN", "TURNOVER", "CIRCLE_ENTRY", "PC_WON", "GOAL", "GREEN_CARD", "YELLOW_CARD", "RED_CARD"],
+  STANDARD: null,
+  ADVANCED: null,
+};
+
+/** The button groups to render for a given encoding level — see LEVEL_BUTTON_TYPES. */
+export function getLiveEncodingButtonGroups(level: EncodingLevel): { category: EventCategory; types: EventType[] }[] {
+  const allowlist = LEVEL_BUTTON_TYPES[level];
+  if (!allowlist) return LIVE_ENCODING_BUTTON_GROUPS;
+  const allowed = new Set(allowlist);
+  return LIVE_ENCODING_BUTTON_GROUPS.map((group) => ({ ...group, types: group.types.filter((t) => allowed.has(t)) })).filter(
+    (group) => group.types.length > 0
+  );
+}
 
 export function getEventDefinition(type: EventType): EventDefinition {
   return EVENT_DEFINITIONS[type];
