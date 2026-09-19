@@ -212,6 +212,22 @@ create table matches (
   -- high ball win, defensive turnover, progression — needs to know which way
   -- is "forward" for a given event). Absent until Sprint 2 actually reads it.
   attacking_directions jsonb,
+  -- A link to wherever the match recording actually lives (YouTube, Veo,
+  -- a club Drive, ...) — deliberately just a URL, not a stored file: no
+  -- storage cost/provider decision needed for this (see docs/INTEGRATIONS.md
+  -- "Video (Sprint 7)", which is about per-event video linking and is a
+  -- separate, heavier decision this doesn't block on).
+  video_url text,
+  -- Map of quarter number -> how far into that video (ms) this quarter's
+  -- clock hit 00:00 — one entry per quarter that's been set, absent
+  -- otherwise. Needed because match_elapsed_ms is a *nominal* clock (each
+  -- quarter counted as exactly quarter_duration_minutes long, breaks not
+  -- represented at all — see getMatchElapsedMs in modules/matches/logic/
+  -- clock.ts) while a single-file recording keeps rolling through halftime,
+  -- so one fixed offset for the whole match would drift by however long the
+  -- real break ran. quarter + quarter_elapsed_ms (not match_elapsed_ms)
+  -- is what a video timestamp is computed from.
+  video_quarter_offsets_ms jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

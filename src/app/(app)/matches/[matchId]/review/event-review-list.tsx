@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { getEventDefinition } from "@/modules/live-encoding/event-definitions";
 import { formatClock } from "@/modules/matches/logic/clock";
+import { getVideoTimestampMs, getVideoUrlAt } from "@/modules/matches/logic/video";
 import { enrichEventPlayer, enrichEventParticipants } from "@/modules/matches/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PlayerAvatar } from "@/components/shared/player-avatar";
 import { cn } from "@/lib/utils";
-import { Pencil } from "lucide-react";
+import { Pencil, PlayCircle } from "lucide-react";
 import type { EventParticipant, HockeyEvent } from "@/types/database";
 import type { RosterEntry } from "@/modules/matches/queries";
 
@@ -26,9 +27,11 @@ interface EventReviewListProps {
   events: HockeyEvent[];
   participants: EventParticipant[];
   roster: RosterEntry[];
+  videoUrl: string | null;
+  videoQuarterOffsetsMs: Record<string, number>;
 }
 
-export function EventReviewList({ events, participants, roster }: EventReviewListProps) {
+export function EventReviewList({ events, participants, roster, videoUrl, videoQuarterOffsetsMs }: EventReviewListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const byId = new Map(roster.map((r) => [r.player.id, r]));
   const participantsByEvent = new Map<string, EventParticipant[]>();
@@ -75,6 +78,24 @@ export function EventReviewList({ events, participants, roster }: EventReviewLis
 
               <div className="flex shrink-0 items-center gap-2">
                 <Badge variant={status.variant}>{status.text}</Badge>
+
+                {videoUrl && (
+                  <Button
+                    nativeButton={false}
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Voir dans la vidéo"
+                    render={
+                      <a
+                        href={getVideoUrlAt(videoUrl, getVideoTimestampMs(videoQuarterOffsetsMs, event.quarter, event.quarter_elapsed_ms))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    }
+                  >
+                    <PlayCircle className="size-4" />
+                  </Button>
+                )}
 
                 {canEnrich && (
                   <Button

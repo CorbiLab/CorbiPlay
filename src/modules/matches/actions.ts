@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_QUARTERS, DEFAULT_QUARTER_DURATION_MINUTES } from "@/config/app";
+import { parseClock } from "@/modules/matches/logic/clock";
 
 const createMatchSchema = z.object({
   teamId: z.string().min(1),
@@ -209,4 +210,51 @@ export async function setMatchRoster(input: z.infer<typeof setRosterSchema>) {
   if (error) throw error;
 
   revalidatePath(`/matches/${parsed.matchId}`);
+}
+
+export interface SetMatchVideoState {
+  error?: string;
+}
+
+/**
+ * Just a link (matches.video_url) plus, per quarter, how far into that
+ * video the quarter's clock hit 00:00 — see modules/matches/logic/video.ts
+ * for why match_elapsed_ms alone can't do this. `offset_q<N>` fields are
+ * read up to `numberOfQuarters`; a blank one is simply omitted, not an
+ * error — a coach may only have timed the quarters they've reviewed so far.
+ */
+export async function setMatchVideo(_prev: SetMatchVideoState, formData: FormData): Promise<SetMatchVideoState> {
+  const matchId = String(formData.get("matchId") ?? "");
+  const videoUrl = String(formData.get("videoUrl") ?? "").trim();
+  const numberOfQuarters = Number(formData.get("numberOfQuarters") ?? 0);
+
+  if (!matchId) return { error: "Match introuvable." };
+  if (videoUrl) {
+    try {
+      new URL(videoUrl);
+    } catch {
+      return { error: "L'adresse de la vidéo n'est pas une URL valide." };
+    }
+  }
+
+  const offsetsMs: Record<string, number> = {};
+  for (let quarter = 1; quarter <= numberOfQuarters; quarter++) {
+    const raw = String(formData.get(`offsetQ${quarter}`) ?? "").trim();
+    if (!raw) continue;
+    const ms = parseClock(raw);
+    if (ms == null) return { error: `Format invalide pour le début du Q${quarter} — attendu mm:ss.` };
+    offsetsMs[String(quarter)] = ms;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("matches")
+    .update({ video_url: videoUrl || null, video_quarter_offsets_ms: offsetsMs })
+    .eq("id", matchId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/matches/${matchId}`);
+  revalidatePath(`/matches/${matchId}/review`);
+  revalidatePath(`/matches/${matchId}/dashboard`);
+  return {};
 }

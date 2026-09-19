@@ -89,3 +89,15 @@ export function formatClock(elapsedMs: number): string {
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
+
+/** Inverse of formatClock — "12:34" -> 754000. Null for anything not `mm:ss`/`h:mm:ss` (e.g. empty, garbled input). */
+export function parseClock(text: string): number | null {
+  const parts = text.trim().split(":");
+  if (parts.length < 2 || parts.length > 3 || parts.some((p) => p === "" || Number.isNaN(Number(p)))) return null;
+  const numbers = parts.map(Number);
+  const seconds = numbers.pop()!;
+  const minutes = numbers.pop()!;
+  const hours = numbers.pop() ?? 0;
+  if (seconds < 0 || seconds >= 60 || minutes < 0 || minutes >= 60 || hours < 0) return null;
+  return ((hours * 60 + minutes) * 60 + seconds) * 1000;
+}

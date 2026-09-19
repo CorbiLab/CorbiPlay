@@ -34,7 +34,14 @@ export default async function MatchReviewPage({ params }: { params: Promise<{ ma
         </div>
       </div>
 
-      <EventReviewList matchId={matchId} events={events} participants={participants} roster={roster} />
+      <EventReviewList
+        matchId={matchId}
+        events={events}
+        participants={participants}
+        roster={roster}
+        videoUrl={match.video_url}
+        videoQuarterOffsetsMs={match.video_quarter_offsets_ms}
+      />
     </div>
   );
 }

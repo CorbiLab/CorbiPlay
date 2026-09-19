@@ -198,6 +198,10 @@ export interface Match {
   quarter_paused_ms_total: number;
   /** Map of quarter number -> attacking direction, e.g. `{ "1": "LEFT_TO_RIGHT" }`. Not yet read anywhere (Sprint 2). */
   attacking_directions: Record<string, "LEFT_TO_RIGHT" | "RIGHT_TO_LEFT"> | null;
+  /** Link to the match recording (YouTube/Veo/Drive/...) — a URL only, no stored file. */
+  video_url: string | null;
+  /** Map of quarter number -> ms into the video where that quarter's clock hit 00:00, e.g. `{ "1": 120000 }`. See modules/matches/logic/video.ts. */
+  video_quarter_offsets_ms: Record<string, number>;
   created_at: string;
   updated_at: string;
 }

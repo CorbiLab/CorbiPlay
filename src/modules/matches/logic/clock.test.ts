@@ -6,6 +6,7 @@ import {
   getQuarterElapsedMs,
   isPaused,
   isRunning,
+  parseClock,
   pauseQuarter,
   resumeQuarter,
   startQuarter,
@@ -68,5 +69,20 @@ describe("match clock", () => {
     expect(formatClock(0)).toBe("00:00");
     expect(formatClock(65_000)).toBe("01:05");
     expect(formatClock(900_000)).toBe("15:00");
+  });
+
+  it("parses mm:ss and h:mm:ss back into ms — the inverse of formatClock", () => {
+    expect(parseClock("00:00")).toBe(0);
+    expect(parseClock("01:05")).toBe(65_000);
+    expect(parseClock("15:00")).toBe(900_000);
+    expect(parseClock("1:02:03")).toBe((62 * 60 + 3) * 1000);
+  });
+
+  it("rejects anything that isn't a clean mm:ss/h:mm:ss", () => {
+    expect(parseClock("")).toBeNull();
+    expect(parseClock("abc")).toBeNull();
+    expect(parseClock("12")).toBeNull();
+    expect(parseClock("12:60")).toBeNull();
+    expect(parseClock("12:-5")).toBeNull();
   });
 });

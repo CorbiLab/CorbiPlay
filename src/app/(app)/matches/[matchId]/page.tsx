@@ -7,6 +7,7 @@ import { MATCH_STATUS_LABEL } from "@/modules/matches/status-labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RosterSection } from "./roster-section";
+import { VideoSection } from "./video-section";
 import { EditMatchDialog } from "./edit-match-dialog";
 import { DeleteMatchButton } from "./delete-match-button";
 
@@ -21,8 +22,6 @@ export default async function MatchOverviewPage({ params }: { params: Promise<{ 
     listPlayersForTeam(match.team_id),
     getHockeyEvents(matchId),
   ]);
-  const starters = roster.filter((r) => r.roster.starter);
-  const canEncode = starters.length > 0;
   const hasEvents = events.some((e) => !e.deleted_at);
 
   return (
@@ -51,13 +50,8 @@ export default async function MatchOverviewPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        {match.status !== "FINISHED" && canEncode && (
+        {match.status !== "FINISHED" && (
           <Button nativeButton={false} render={<Link href={`/matches/${match.id}/live`} />} size="lg">
-            Ouvrir l&apos;encodage live
-          </Button>
-        )}
-        {match.status !== "FINISHED" && !canEncode && (
-          <Button size="lg" disabled>
             Ouvrir l&apos;encodage live
           </Button>
         )}
@@ -69,10 +63,13 @@ export default async function MatchOverviewPage({ params }: { params: Promise<{ 
             Réviser les événements
           </Button>
         )}
-        {!canEncode && match.status !== "FINISHED" && (
-          <span className="text-sm text-muted-foreground">Compose l&apos;effectif ci-dessous avant de démarrer.</span>
-        )}
       </div>
+      {roster.length === 0 && match.status !== "FINISHED" && (
+        <p className="text-sm text-muted-foreground">
+          Aucun effectif composé — les événements peuvent quand même être tagués (sans joueur attribué) ; compose
+          l&apos;effectif quand tu veux, avant ou après le match, pour attribuer les événements aux joueurs.
+        </p>
+      )}
 
       {match.status === "FINISHED" && (
         <p className="rounded-xl bg-muted px-4 py-2 font-mono text-3xl font-bold tabular-nums w-fit">
@@ -80,7 +77,15 @@ export default async function MatchOverviewPage({ params }: { params: Promise<{ 
         </p>
       )}
 
-      <RosterSection matchId={match.id} players={players} roster={roster} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <RosterSection matchId={match.id} players={players} roster={roster} />
+        <VideoSection
+          matchId={match.id}
+          videoUrl={match.video_url}
+          quarterOffsetsMs={match.video_quarter_offsets_ms}
+          numberOfQuarters={match.number_of_quarters}
+        />
+      </div>
     </div>
   );
 }
