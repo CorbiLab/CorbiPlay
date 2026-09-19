@@ -17,13 +17,21 @@ describe("getPitchZone", () => {
     expect(getPitchZone(80, 50, "LEFT")).toBe("DEFENSIVE_25_CENTER");
   });
 
-  it("identifies the middle third", () => {
-    expect(getPitchZone(50, 50, "RIGHT")).toBe("MIDDLE_CENTER");
+  it("splits the middle third at the halfway line into an own-half and opposition-half band", () => {
+    // Attacking right: own half is x in (25, 50], opposition half is x in (50, 75).
+    expect(getPitchZone(40, 50, "RIGHT")).toBe("MIDDLE_DEFENSIVE_CENTER");
+    expect(getPitchZone(50, 50, "RIGHT")).toBe("MIDDLE_DEFENSIVE_CENTER"); // halfway line itself
+    expect(getPitchZone(60, 50, "RIGHT")).toBe("MIDDLE_ATTACKING_CENTER");
+  });
+
+  it("flips which half of the middle is 'defensive' vs 'attacking' when attacking left", () => {
+    expect(getPitchZone(60, 50, "LEFT")).toBe("MIDDLE_DEFENSIVE_CENTER");
+    expect(getPitchZone(40, 50, "LEFT")).toBe("MIDDLE_ATTACKING_CENTER");
   });
 
   it("identifies left/right channels by y", () => {
-    expect(getPitchZone(50, 10, "RIGHT")).toBe("MIDDLE_LEFT");
-    expect(getPitchZone(50, 90, "RIGHT")).toBe("MIDDLE_RIGHT");
+    expect(getPitchZone(40, 10, "RIGHT")).toBe("MIDDLE_DEFENSIVE_LEFT");
+    expect(getPitchZone(40, 90, "RIGHT")).toBe("MIDDLE_DEFENSIVE_RIGHT");
   });
 
   it("identifies the circle near the attacking backline, central width", () => {
@@ -37,12 +45,12 @@ describe("getPitchZone", () => {
 });
 
 describe("TAP_ZONES — the live-encoding touch grid (spec §75/§87)", () => {
-  it("has exactly 9 zones covering the pitch with no gaps or overlaps", () => {
-    expect(TAP_ZONES).toHaveLength(9);
-    // 3 x-bands x 3 y-bands, each fully covering its slice.
+  it("has exactly 12 zones covering the pitch with no gaps or overlaps", () => {
+    expect(TAP_ZONES).toHaveLength(12);
+    // 4 uniform x-bands x 3 y-bands, each fully covering its slice.
     const xEdges = new Set(TAP_ZONES.flatMap((z) => z.xRange));
     const yEdges = new Set(TAP_ZONES.flatMap((z) => z.yRange));
-    expect([...xEdges].sort((a, b) => a - b)).toEqual([0, 25, 75, 100]);
+    expect([...xEdges].sort((a, b) => a - b)).toEqual([0, 25, 50, 75, 100]);
     expect([...yEdges].sort((a, b) => a - b)).toEqual([0, 33.33, 66.67, 100]);
   });
 
@@ -53,7 +61,7 @@ describe("TAP_ZONES — the live-encoding touch grid (spec §75/§87)", () => {
       expect(zone.centerY).toBeGreaterThanOrEqual(zone.yRange[0]);
       expect(zone.centerY).toBeLessThanOrEqual(zone.yRange[1]);
       // Never throws / never falls through to an unexpected value.
-      expect(getPitchZone(zone.centerX, zone.centerY, "RIGHT")).toMatch(/^(DEFENSIVE_25|MIDDLE|ATTACKING_25|CIRCLE)/);
+      expect(getPitchZone(zone.centerX, zone.centerY, "RIGHT")).toMatch(/^(DEFENSIVE_25|MIDDLE_DEFENSIVE|MIDDLE_ATTACKING|ATTACKING_25|CIRCLE)/);
     }
   });
 
