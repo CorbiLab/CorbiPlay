@@ -38,7 +38,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: "Entraînement",
-    items: [{ label: "Séances", href: "/training", icon: Dumbbell, placeholder: true }],
+    items: [{ label: "Séances", href: "/training", icon: Dumbbell }],
   },
   {
     label: "Athlètes",
