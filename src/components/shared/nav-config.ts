@@ -34,7 +34,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Hockey",
     items: [
       { label: "Matchs", href: "/matches", icon: Swords },
-      { label: "Analyse d'équipe", href: "/analysis", icon: LineChart, placeholder: true },
+      { label: "Analyse d'équipe", href: "/analysis", icon: LineChart },
     ],
   },
   {

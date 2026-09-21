@@ -158,6 +158,21 @@ alter table session_rpe_entries add constraint session_rpe_entries_player_id_spo
   unique (player_id, sporting_session_id);
 ```
 
+## Season-wide team analysis (shipped 2026-09-21, out-of-sequence)
+
+`/analysis` ("Analyse d'équipe") had a stale ComingSoon placeholder left over
+from before Sprint 2 built the per-match dashboard — its text described
+conversion funnel/momentum/heatmaps, which already exist at
+`/matches/[matchId]/dashboard`. Repurposed instead as the genuinely missing
+piece: a season-wide rollup across every FINISHED match for the active team
++ active season — record (W/D/L), goals for/against, discipline card
+totals, a form chart (goal margin per match, chronological), and a top
+scorers/assists table. `modules/analytics/logic/season-summary.ts`
+(tested) reuses `computeMatchStats` per match rather than trusting
+`matches.our_score`, same reasoning as the match dashboard. Not
+season-scoped to a specific date range beyond `matches.season_id` — a club
+with one season per school year doesn't need finer filtering yet.
+
 ## Sprint 1 acceptance walkthrough
 
 Mapped against the spec's own §85 list (1–41). Each numbered item there
