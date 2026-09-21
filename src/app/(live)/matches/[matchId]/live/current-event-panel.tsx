@@ -4,7 +4,13 @@ import { useState } from "react";
 import { useLiveEncodingStore } from "@/modules/live-encoding/store";
 import { getEventDefinition, resolvePlayerRequirement } from "@/modules/live-encoding/event-definitions";
 import { validateDraftEvent } from "@/modules/live-encoding/logic/event-validation";
-import { SUGGESTED_PRESS_OUTCOMES } from "@/modules/analytics/logic/tactical-vocabulary";
+import {
+  SUGGESTED_ATTACK_TYPES,
+  SUGGESTED_POSSESSION_START_TYPES,
+  SUGGESTED_PRESS_OUTCOMES,
+  SUGGESTED_SEQUENCE_OUTCOMES,
+  SUGGESTED_TACTICAL_CONTEXTS,
+} from "@/modules/analytics/logic/tactical-vocabulary";
 import { Button } from "@/components/ui/button";
 import { PlayerAvatar } from "@/components/shared/player-avatar";
 import { cn } from "@/lib/utils";
@@ -16,6 +22,51 @@ const PRESS_OUTCOME_LABEL: Record<string, string> = {
   FORCED_LONG_BALL: "Forced Long Ball",
   BROKEN: "Broken",
   NO_EFFECT: "No Effect",
+};
+
+// Suggested vocabulary (docs/HOCKEY_ANALYTICS.md "Tactical context & attack
+// type") — the columns behind these are plain text, club-configurable, not
+// enums (ADR-002); these labels are just the default picker, never enforced.
+const POSSESSION_START_TYPE_LABEL: Record<string, string> = {
+  BALL_RECOVERY: "Récupération",
+  FREE_HIT: "Coup franc",
+  SIDELINE_BALL: "Rentrée de touche",
+  LONG_CORNER: "Corner long",
+  DEFENSIVE_RESTART: "Relance défensive",
+  CENTER_PASS: "Engagement",
+  OPPONENT_TURNOVER: "Perte adverse",
+  INTERCEPTION: "Interception",
+  GOALKEEPER_RESTART: "Relance du gardien",
+  OTHER: "Autre",
+};
+
+const ATTACK_TYPE_LABEL: Record<string, string> = {
+  ESTABLISHED_ATTACK: "Attaque établie",
+  COUNTER_ATTACK: "Contre-attaque",
+  SET_PIECE: "Coup arrêté",
+  OTHER: "Autre",
+};
+
+const TACTICAL_CONTEXT_LABEL: Record<string, string> = {
+  OUTLET: "Sortie de balle",
+  TRANSFER: "Transfert",
+  BUILD_UP: "Construction",
+  HIGH_PRESS: "Press haut",
+  THREE_QUARTER_PRESS: "Press 3/4",
+  HALF_PRESS: "Press mi-terrain",
+  LOW_BLOCK: "Bloc bas",
+  COUNTER_PRESS: "Contre-press",
+  COUNTER_ATTACK: "Contre-attaque",
+  ESTABLISHED_ATTACK: "Attaque établie",
+  SET_PIECE: "Coup arrêté",
+  OVERLOAD: "Surnombre",
+  OTHER: "Autre",
+};
+
+const SEQUENCE_OUTCOME_LABEL: Record<string, string> = {
+  POSITIVE: "Positif",
+  NEUTRAL: "Neutre",
+  NEGATIVE: "Négatif",
 };
 
 export function CurrentEventPanel() {
@@ -80,6 +131,10 @@ export function CurrentEventPanel() {
   const outcomeOptions: EventOutcome[] = ["SUCCESS", "FAIL", "NEUTRAL"];
   const playerRequirement = resolvePlayerRequirement(def, encodingLevel);
   const pressOutcome = draft.metadata?.pressOutcome as string | undefined;
+  const possessionStartType = draft.metadata?.possessionStartType as string | undefined;
+  const attackType = draft.metadata?.attackType as string | undefined;
+  const tacticalContext = draft.metadata?.tacticalContext as string | undefined;
+  const sequenceOutcome = draft.metadata?.sequenceOutcome as string | undefined;
 
   return (
     <div className="space-y-4">
@@ -173,6 +228,78 @@ export function CurrentEventPanel() {
             ))}
           </div>
         </div>
+      )}
+
+      {draft.type === "POSSESSION_START" && (
+        <div>
+          <p className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Début de possession (optionnel)</p>
+          <div className="flex flex-wrap gap-2">
+            {SUGGESTED_POSSESSION_START_TYPES.map((type) => (
+              <Button
+                key={type}
+                size="sm"
+                variant={possessionStartType === type ? "default" : "outline"}
+                onClick={() => setDraftMetadata({ possessionStartType: type })}
+                className={cn(possessionStartType === type && "bg-category-possession text-white hover:bg-category-possession/90")}
+              >
+                {POSSESSION_START_TYPE_LABEL[type] ?? type}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {draft.type === "POSSESSION_END" && (
+        <>
+          <div>
+            <p className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Type d&apos;attaque (optionnel)</p>
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTED_ATTACK_TYPES.map((type) => (
+                <Button
+                  key={type}
+                  size="sm"
+                  variant={attackType === type ? "default" : "outline"}
+                  onClick={() => setDraftMetadata({ attackType: type })}
+                  className={cn(attackType === type && "bg-category-possession text-white hover:bg-category-possession/90")}
+                >
+                  {ATTACK_TYPE_LABEL[type] ?? type}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Contexte tactique (optionnel)</p>
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTED_TACTICAL_CONTEXTS.map((context) => (
+                <Button
+                  key={context}
+                  size="sm"
+                  variant={tacticalContext === context ? "default" : "outline"}
+                  onClick={() => setDraftMetadata({ tacticalContext: context })}
+                  className={cn(tacticalContext === context && "bg-category-possession text-white hover:bg-category-possession/90")}
+                >
+                  {TACTICAL_CONTEXT_LABEL[context] ?? context}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Résultat de la séquence (optionnel)</p>
+            <div className="flex gap-2">
+              {SUGGESTED_SEQUENCE_OUTCOMES.map((outcome) => (
+                <Button
+                  key={outcome}
+                  size="sm"
+                  variant={sequenceOutcome === outcome ? "default" : "outline"}
+                  onClick={() => setDraftMetadata({ sequenceOutcome: outcome })}
+                  className={cn(sequenceOutcome === outcome && "bg-category-possession text-white hover:bg-category-possession/90")}
+                >
+                  {SEQUENCE_OUTCOME_LABEL[outcome] ?? outcome}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       <div className="flex gap-2 pt-2">

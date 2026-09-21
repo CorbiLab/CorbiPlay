@@ -6,10 +6,11 @@ rows to sequence-level tactical analysis, without turning Sprint 1 into the
 whole analytics product. See ADR-002 in ARCHITECTURE.md for the schema
 decisions this document assumes.
 
-**Status as of this document:** schema-ready. Nothing described below as
-"Sprint 2+" is wired into any screen yet — no new live-encoding button, no
-post-match review UI, no KPI dashboard. What exists today: the columns/tables,
-and a set of pure analytics functions in
+**Status as of this document:** schema-ready, with live possession tagging
+and its optional tactical-classification prompts now shipped (see
+"Tactical context & attack type" below) — a KPI dashboard is still not
+built. What exists today: the columns/tables, the live-encoding tagging
+described below, and a set of pure analytics functions in
 `src/modules/analytics/logic/sequences.ts` that already work over whatever
 data those future features eventually write.
 
@@ -213,15 +214,26 @@ the same `team_id` (see "Opponent-side tagging" above).
 ## Tactical context & attack type
 
 Deliberately club-configurable, deliberately not enums (ADR-002, decision 1).
-`tactical-vocabulary.ts` exports suggested lists for a future picker UI:
+`tactical-vocabulary.ts` exports suggested lists for the picker UI:
 
-- `SUGGESTED_POSSESSION_START_TYPES`
-- `SUGGESTED_ATTACK_TYPES`
-- `SUGGESTED_TACTICAL_CONTEXTS`
-- `SUGGESTED_SEQUENCE_OUTCOMES`
-- `SUGGESTED_PRESSURE_CONTEXTS`
+- `SUGGESTED_POSSESSION_START_TYPES` — optional buttons on the POSSESSION_START
+  draft (current-event-panel.tsx), write `possessions.possession_start_type`.
+- `SUGGESTED_ATTACK_TYPES` / `SUGGESTED_TACTICAL_CONTEXTS` /
+  `SUGGESTED_SEQUENCE_OUTCOMES` — same, on the POSSESSION_END draft, write
+  `.attack_type` / `.tactical_context` / `.outcome`. Never required to save
+  (same "nudged, not blocked" posture as PRESS's outcome buttons) — picking
+  one just sets `draft.metadata`, consumed by `saveDraft()` when it builds
+  the possession row it creates/closes.
+- `SUGGESTED_PRESSURE_CONTEXTS` — still unread by any screen (would live on
+  a per-event prompt, not possession-level; not built yet).
 
-None of these are read by any screen yet.
+Fixed in the same pass (shipped 2026-09-21): `saveDraft()`'s outbox writes
+enqueued `INSERT_EVENT` before `UPSERT_POSSESSION` for a POSSESSION_START —
+since the outbox drains in strict enqueue order, this was a guaranteed
+`hockey_events_possession_id_fkey` violation on every POSSESSION_START
+against a real (non-demo) project, caught by testing this tagging flow
+against one for the first time since it shipped in Sprint 2. The possession
+write is now always enqueued first.
 
 ## Spatial analytics
 

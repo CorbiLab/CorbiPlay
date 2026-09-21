@@ -353,7 +353,10 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
         start_y: draft.startY ?? null,
         end_x: null,
         end_y: null,
-        possession_start_type: null,
+        // Optional tactical tags picked on the POSSESSION_START/END draft
+        // itself (current-event-panel.tsx) — never required to save, same
+        // "nudged, not blocked" posture as everything else here.
+        possession_start_type: (draft.metadata?.possessionStartType as string | undefined) ?? null,
         attack_type: null,
         tactical_context: null,
         outcome: null,
@@ -364,9 +367,22 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
       possessions = [...possessions, newPossession];
     } else if (isEnd && state.openPossessionId) {
       const openId = state.openPossessionId;
+      const attackType = (draft.metadata?.attackType as string | undefined) ?? null;
+      const tacticalContext = (draft.metadata?.tacticalContext as string | undefined) ?? null;
+      const sequenceOutcome = (draft.metadata?.sequenceOutcome as string | undefined) ?? null;
       possessions = possessions.map((p) =>
         p.id === openId
-          ? { ...p, end_match_elapsed_ms: matchElapsedMs, end_x: draft.startX ?? null, end_y: draft.startY ?? null, end_timestamp: nowIso, updated_at: nowIso }
+          ? {
+              ...p,
+              end_match_elapsed_ms: matchElapsedMs,
+              end_x: draft.startX ?? null,
+              end_y: draft.startY ?? null,
+              end_timestamp: nowIso,
+              attack_type: attackType,
+              tactical_context: tacticalContext,
+              outcome: sequenceOutcome,
+              updated_at: nowIso,
+            }
           : p
       );
       closedPossession = possessions.find((p) => p.id === openId) ?? null;
@@ -381,10 +397,22 @@ export const useLiveEncodingStore = create<LiveEncodingState>((set, get) => ({
     });
 
     if (isSupabaseConfigured()) {
-      queueWrite("INSERT_EVENT", event)
+      // The possession row (if this draft creates or closes one) must reach
+      // the outbox — and therefore the server — before the event that
+      // references it via hockey_events.possession_id: the outbox drains in
+      // strict enqueue order (offline/outbox.ts's listPending sorts by id),
+      // so queuing INSERT_EVENT first was a guaranteed foreign-key violation
+      // on every real (non-demo) POSSESSION_START, caught here by testing
+      // possession tagging against a real Supabase project for the first
+      // time since it shipped in Sprint 2.
+      const possessionWrite = newPossession
+        ? queueWrite("UPSERT_POSSESSION", newPossession)
+        : closedPossession
+          ? queueWrite("UPSERT_POSSESSION", closedPossession)
+          : Promise.resolve();
+      possessionWrite
+        .then(() => queueWrite("INSERT_EVENT", event))
         .then(() => (participants.length > 0 ? queueWrite("INSERT_EVENT_PARTICIPANTS", participants) : undefined))
-        .then(() => (newPossession ? queueWrite("UPSERT_POSSESSION", newPossession) : undefined))
-        .then(() => (closedPossession ? queueWrite("UPSERT_POSSESSION", closedPossession) : undefined))
         .then(() => get().syncNow());
     }
   },
