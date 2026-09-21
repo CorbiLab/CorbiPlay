@@ -670,7 +670,10 @@ create table session_rpe_entries (
   duration_min numeric not null,
   rpe numeric not null check (rpe >= 0 and rpe <= 10),
   session_load numeric generated always as (duration_min * rpe) stored,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- One RPE per athlete per session (Session-RPE method) — added for Sprint 4
+  -- so the entry form can upsert instead of needing a select-then-branch.
+  unique (player_id, sporting_session_id)
 );
 create index session_rpe_entries_player_idx on session_rpe_entries(player_id);
 create index session_rpe_entries_session_idx on session_rpe_entries(sporting_session_id);

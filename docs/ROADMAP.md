@@ -120,6 +120,44 @@ STATSports (or other sensor) CSV export in hand, not a guessed format.
 `performance_metrics`/`physical_sessions`/`athlete_physical_sessions` remain
 schema-ready and unused, same as before this sprint.
 
+## Sprint 4 (closed 2026-09-21, partial by design)
+
+Session-RPE load and daily wellness shipped, both staff-entered (spec
+PERMISSIONS.md: writing `session_rpe_entries`/`wellness_entries` needs
+`has_sensitive_access`, there's no player self-report portal in this app).
+
+- **RPE**: a "Charge perçue" card on the training-session page
+  (`(app)/training/[sessionId]/rpe-section.tsx`), one row per player marked
+  PRESENT/MODIFIED in attendance, a shared session duration, RPE 0-10 per
+  player, saved immediately — `session_rpe_entries.session_load` is a
+  generated column (`duration_min * rpe`). Added a `unique(player_id,
+  sporting_session_id)` constraint that table was missing (needed to
+  upsert instead of select-then-branch); see the SQL patch below.
+- **Wellness**: `/performance/wellness`, a date-switchable squad-wide form
+  (sleep/fatigue/soreness/stress/motivation 1-5 + a pain flag), one upsert
+  per player row on save.
+- **Squad load dashboard**: `/performance/load` replaces its ComingSoon
+  stub — a 7-day/28-day Acute:Chronic Workload Ratio per player
+  (`modules/performance/logic/load.ts`, tested), using the conventional
+  Gabbett/Hulin bands (`<0.8` undertrained, `0.8-1.3` optimal, `1.3-1.5`
+  caution, `>1.5` high risk) to flag rows, same "typed constant, not
+  DB-editable" posture as the momentum formula (ROADMAP issue #2). A rest
+  day counts as 0 load in the rolling average, not as a missing day.
+
+**Deliberately not built**: match-reference comparisons
+(`athlete_match_references`) — same reasoning as the Sprint 3 GPS import:
+that table compares a player's current numbers against a GPS-derived
+baseline, and there's no GPS data at all yet to compare against or derive
+a baseline from. Revisit once STATSports (or another sensor) import lands.
+
+SQL patch needed (adds the missing unique constraint — matches_video_url-
+style, not yet in a tracked migration run against the live project):
+
+```sql
+alter table session_rpe_entries add constraint session_rpe_entries_player_id_sporting_session_id_key
+  unique (player_id, sporting_session_id);
+```
+
 ## Sprint 1 acceptance walkthrough
 
 Mapped against the spec's own §85 list (1–41). Each numbered item there

@@ -1,19 +1,25 @@
 import { notFound } from "next/navigation";
 import { getTrainingSession, getTrainingAttendance } from "@/modules/training/queries";
 import { getTeam } from "@/modules/teams/queries";
+import { getSessionRpeEntries } from "@/modules/performance/queries";
 import { TRAINING_SESSION_TYPE_LABEL } from "@/modules/training/status-labels";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EditTrainingDialog } from "./edit-training-dialog";
 import { DeleteTrainingButton } from "./delete-training-button";
 import { AttendanceSection } from "./attendance-section";
+import { RpeSection } from "./rpe-section";
 
 export default async function TrainingSessionPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params;
   const session = await getTrainingSession(sessionId);
   if (!session) notFound();
 
-  const [team, attendance] = await Promise.all([getTeam(session.team_id), getTrainingAttendance(sessionId)]);
+  const [team, attendance, rpeEntries] = await Promise.all([
+    getTeam(session.team_id),
+    getTrainingAttendance(sessionId),
+    getSessionRpeEntries(sessionId),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -51,6 +57,8 @@ export default async function TrainingSessionPage({ params }: { params: Promise<
       )}
 
       <AttendanceSection sessionId={session.id} attendance={attendance} />
+
+      <RpeSection sportingSessionId={session.id} attendance={attendance} existingEntries={rpeEntries} />
     </div>
   );
 }

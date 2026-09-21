@@ -5,6 +5,7 @@ import {
   Dumbbell,
   Users,
   Gauge,
+  HeartPulse,
   Satellite,
   Building2,
   Shield,
@@ -47,7 +48,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Performance",
     items: [
-      { label: "Charge de l'effectif", href: "/performance/load", icon: Gauge, placeholder: true },
+      { label: "Charge de l'effectif", href: "/performance/load", icon: Gauge },
+      { label: "Bien-être", href: "/performance/wellness", icon: HeartPulse },
       { label: "GPS", href: "/performance/gps", icon: Satellite, placeholder: true },
     ],
   },
