@@ -27,6 +27,11 @@ interface VideoSectionProps {
  */
 export function VideoSection({ matchId, videoUrl, quarterOffsetsMs, numberOfQuarters }: VideoSectionProps) {
   const [state, action, pending] = useActionState(setMatchVideo, initialState);
+  // Same format-aware wording as the live-encoding header (periodAbbrev
+  // there) — the field count already adapts to numberOfQuarters, but the
+  // label still said "Q1"/"Q2" even for a 2-period (mi-temps) match.
+  const periodAbbrev = numberOfQuarters === 2 ? "MT" : "Q";
+  const periodLabel = numberOfQuarters === 2 ? "mi-temps" : "quart-temps";
 
   return (
     <Card>
@@ -53,16 +58,16 @@ export function VideoSection({ matchId, videoUrl, quarterOffsetsMs, numberOfQuar
           </div>
 
           <div className="space-y-1">
-            <Label>Début de chaque quart-temps dans la vidéo (mm:ss, optionnel)</Label>
+            <Label>Début de chaque {periodLabel} dans la vidéo (mm:ss, optionnel)</Label>
             <p className="text-xs text-muted-foreground">
-              Laisse vide si tu ne l&apos;as pas encore repéré — les liens vers les événements de ce quart-temps
+              Laisse vide si tu ne l&apos;as pas encore repéré — les liens vers les événements de cette {periodLabel}
               pointeront juste vers la vidéo sans se positionner automatiquement.
             </p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {Array.from({ length: numberOfQuarters }, (_, i) => i + 1).map((quarter) => (
                 <div key={quarter} className="space-y-1">
                   <Label htmlFor={`offsetQ${quarter}`} className="text-xs text-muted-foreground">
-                    Q{quarter}
+                    {periodAbbrev}{quarter}
                   </Label>
                   <Input
                     id={`offsetQ${quarter}`}

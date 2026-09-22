@@ -270,12 +270,13 @@ export async function setMatchVideo(_prev: SetMatchVideoState, formData: FormDat
     }
   }
 
+  const periodAbbrev = numberOfQuarters === 2 ? "MT" : "Q";
   const offsetsMs: Record<string, number> = {};
   for (let quarter = 1; quarter <= numberOfQuarters; quarter++) {
     const raw = String(formData.get(`offsetQ${quarter}`) ?? "").trim();
     if (!raw) continue;
     const ms = parseClock(raw);
-    if (ms == null) return { error: `Format invalide pour le début du Q${quarter} — attendu mm:ss.` };
+    if (ms == null) return { error: `Format invalide pour le début du ${periodAbbrev}${quarter} — attendu mm:ss.` };
     offsetsMs[String(quarter)] = ms;
   }
 
